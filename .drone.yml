@@ -18,7 +18,7 @@ steps:
         from_secret: github_registry
       repo: ghcr.io/stefannitsche/beets
       build_args:
-        - BEETS_VERSION
+        - BEETS_VERSION=${BEETS_VERSION}
       tags:
         - latest
         - ${BEETS_VERSION}
