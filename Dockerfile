@@ -1,5 +1,8 @@
 FROM python:3.12-bookworm
 
+ARG BEETS_VERSION
+ENV BEETS_VERSION=${BEETS_VERSION}
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     ffmpeg \
@@ -20,16 +23,12 @@ RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
     tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz && \
     rm /tmp/s6-overlay-*.tar.xz
 
-ARG BEETS_VERSION
-ENV BEETS_VERSION=${BEETS_VERSION}
-
 # Create venv for Beets
 RUN python -m venv /opt/beets
 
 # Install pip and Beets inside venv
 RUN /opt/beets/bin/pip install --no-cache-dir --upgrade pip setuptools && \
-    /opt/beets/bin/pip install --no-cache-dir beets==${BEETS_VERSION} \
-    "beets[all]" \
+    /opt/beets/bin/pip install --no-cache-dir beets[all]==${BEETS_VERSION} \
     git+https://github.com/edgars-supe/beets-importreplace.git
 
 # Setup directories
