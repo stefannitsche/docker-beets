@@ -1,0 +1,2 @@
+# Example cron job to run beet import daily
+0 3 * * * root beet import /music/import -c $BEETS_CONFIG >> /logs/beets-import.log 2>&1

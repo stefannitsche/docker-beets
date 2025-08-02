@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<Container>
+  <Name>Beets</Name>
+  <Repository>yourdockerhubusername/beets</Repository>
+  <Registry>https://hub.docker.com/r/yourdockerhubusername/beets</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/stefannitsche/beets-docker</Support>
+  <Project>https://beets.io/</Project>
+  <Overview>This container runs Beets with optional cron and web server, using s6-overlay and Unraid-friendly UID/GID support.</Overview>
+  <Category>MediaManagement:Music</Category>
+  <WebUI>http://[IP]:[PORT:8337]</WebUI>
+  <Icon>https://beets.io/static/favicon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Version>latest</Version>
+  <Environment>
+    <Variable>
+      <Name>PUID</Name>
+      <Value>99</Value>
+      <Description>Set the user ID to run the container (matches your Unraid user ID)</Description>
+    </Variable>
+    <Variable>
+      <Name>PGID</Name>
+      <Value>100</Value>
+      <Description>Set the group ID to run the container (matches your Unraid group ID)</Description>
+    </Variable>
+    <Variable>
+      <Name>BEETS_CONFIG</Name>
+      <Value>/config/config.yaml</Value>
+      <Description>Path to Beets configuration file</Description>
+    </Variable>
+  </Environment>
+  <Data>
+    <Volume>
+      <HostDir>/mnt/user/appdata/beets/config</HostDir>
+      <ContainerDir>/config</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+    <Volume>
+      <HostDir>/mnt/user/media/music</HostDir>
+      <ContainerDir>/music</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+    <Volume>
+      <HostDir>/mnt/user/appdata/beets/logs</HostDir>
+      <ContainerDir>/logs</ContainerDir>
+      <Mode>rw</Mode>
+    </Volume>
+  </Data>
+  <Port>
+    <HostPort>8337</HostPort>
+    <ContainerPort>8337</ContainerPort>
+    <Protocol>tcp</Protocol>
+  </Port>
+</Container>

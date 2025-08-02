@@ -1,0 +1,30 @@
+kind: pipeline
+name: default
+
+steps:
+  - name: fetch beets version
+    image: alpine
+    commands:
+      - apk add --no-cache curl jq
+      - export BEETS_VERSION=$(curl -s https://pypi.org/pypi/beets/json | jq -r '.info.version')
+      - echo "BEETS_VERSION=${BEETS_VERSION}" >> build.env
+
+  - name: build and push to GHCR
+    image: plugins/docker
+    settings:
+      registry: ghcr.io
+      username: stefannitsche
+      password:
+        from_secret: github_registry
+      repo: ghcr.io/stefannitsche/beets
+      build_args:
+        - BEETS_VERSION
+      tags:
+        - latest
+        - ${BEETS_VERSION}
+        - ${BEETS_VERSION}.${DRONE_BUILD_NUMBER}
+      purge: true
+      pull_image: true
+      no_cache: true
+    environment:
+      from_file: build.env
