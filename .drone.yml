@@ -31,8 +31,8 @@ steps:
       password:
         from_secret: github_registry
       repo: ghcr.io/stefannitsche/beets
-      build_args:
-        - BEETS_VERSION=${BEETS_VERSION}
+      build_args_from_env:
+        - BEETS_VERSION
       tags:
         - latest
         - ${BEETS_VERSION}
