@@ -19,6 +19,8 @@ steps:
     environment:
       from_file: /drone/src/build.env
     commands:
+      - env
+      - source build.env
       - echo "Beets version is $BEETS_VERSION"
 
   - name: build and push to GHCR
