@@ -24,25 +24,45 @@ steps:
       - echo "Beets version is $BEETS_VERSION"
       - echo "BEETS_VERSION=${BEETS_VERSION}" >> /drone/src/.drone.env
 
-  - name: build and push to GHCR
-    image: plugins/docker
-    environment:
-      from_file: /drone/src/build.env
-    settings:
-      registry: ghcr.io
-      username: stefannitsche
-      password:
-        from_secret: github_registry
-      repo: ghcr.io/stefannitsche/beets
-      #build_args:
-      #  - BEETS_VERSION=${BEETS_VERSION}
-      build_args_from_env:
-        - BEETS_VERSION
-      tags:
-        - latest
-        - ${BEETS_VERSION}
-        - ${BEETS_VERSION}.${DRONE_BUILD_NUMBER}
-      purge: true
-      pull_image: true
-      no_cache: true
+#  - name: build and push to GHCR
+#    image: plugins/docker
+#    environment:
+#      from_file: /drone/src/build.env
+#    settings:
+#      registry: ghcr.io
+#      username: stefannitsche
+#      password:
+#        from_secret: github_registry
+#      repo: ghcr.io/stefannitsche/beets
+#      build_args_from_env:
+#        - BEETS_VERSION
+#      tags:
+#        - latest
+#        - ${BEETS_VERSION}
+#        - ${BEETS_VERSION}.${DRONE_BUILD_NUMBER}
+#      purge: true
+#      pull_image: true
+#      no_cache: true
 
+  - name: build and push to GHCR
+    image: docker:cli
+    environment:
+      GITHUB_REGISTRY:
+        from_secret: github_registry
+    volumes:
+      - name: dockersock
+        path: /var/run/docker.sock
+    commands:
+      - echo "Reading BEETS_VERSION from build.env"
+      - source build.env
+      - echo "Using BEETS_VERSION=$BEETS_VERSION"
+      - docker build --rm=true --pull --no-cache --build-arg BEETS_VERSION=$BEETS_VERSION -t ghcr.io/stefannitsche/beets:latest -t ghcr.io/stefannitsche/beets:$BEETS_VERSION -t ghcr.io/stefannitsche/beets:$BEETS_VERSION.$DRONE_BUILD_NUMBER .
+      - echo "$GITHUB_REGISTRY" | docker login ghcr.io -u stefannitsche --password-stdin
+      - docker push ghcr.io/stefannitsche/beets:latest
+      - docker push ghcr.io/stefannitsche/beets:$BEETS_VERSION
+      - docker push ghcr.io/stefannitsche/beets:$BEETS_VERSION.$DRONE_BUILD_NUMBER
+
+volumes:
+  - name: dockersock
+    host:
+      path: /var/run/docker.sock
