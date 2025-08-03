@@ -14,7 +14,7 @@ steps:
         echo BEETS_VERSION=\$BEETS_VERSION &&
         echo BEETS_VERSION=\$BEETS_VERSION > build.env"
 
-  - name: debug env
+  - name: debug and load env
     image: alpine
     environment:
       from_file: /drone/src/build.env
@@ -22,6 +22,7 @@ steps:
       - env
       - source build.env
       - echo "Beets version is $BEETS_VERSION"
+      - echo "BEETS_VERSION=${BEETS_VERSION}" >> /drone/env/.drone.env
 
   - name: build and push to GHCR
     image: plugins/docker
@@ -31,8 +32,10 @@ steps:
       password:
         from_secret: github_registry
       repo: ghcr.io/stefannitsche/beets
-      build_args:
-        - BEETS_VERSION=${BEETS_VERSION}
+      #build_args:
+      #  - BEETS_VERSION=${BEETS_VERSION}
+      build_args_from_env:
+        - BEETS_VERSION
       tags:
         - latest
         - ${BEETS_VERSION}
