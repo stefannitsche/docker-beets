@@ -8,9 +8,11 @@ steps:
     image: alpine
     commands:
       - apk add --no-cache curl jq
-      - BEETS_VERSION=$(curl -s https://pypi.org/pypi/beets/json | jq -r '.info.version')
-      - echo "BEETS_VERSION=${BEETS_VERSION}"
-      - echo "BEETS_VERSION=${BEETS_VERSION}" > /drone/src/build.env
+      - curl -s https://pypi.org/pypi/beets/json -o pypi.json
+      - cat pypi.json
+      - jq -r '.info.version' pypi.json
+      - BEETS_VERSION=$(jq -r '.info.version' pypi.json)
+      - echo "BEETS_VERSION=${BEETS_VERSION}" > build.env
 
   - name: debug env
     image: alpine
