@@ -22,10 +22,12 @@ steps:
       - env
       - source build.env
       - echo "Beets version is $BEETS_VERSION"
-      - echo "BEETS_VERSION=${BEETS_VERSION}" >> /drone/env/.drone.env
+      - echo "BEETS_VERSION=${BEETS_VERSION}" >> /drone/src/.drone.env
 
   - name: build and push to GHCR
     image: plugins/docker
+    environment:
+      from_file: /drone/src/build.env
     settings:
       registry: ghcr.io
       username: stefannitsche
@@ -43,5 +45,4 @@ steps:
       purge: true
       pull_image: true
       no_cache: true
-    environment:
-      from_file: /drone/src/build.env
+
