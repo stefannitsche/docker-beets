@@ -1,3 +1,0 @@
-#!/command/execlineb -P
-with-contenv
-exec crond -f -L /logs/cron.log

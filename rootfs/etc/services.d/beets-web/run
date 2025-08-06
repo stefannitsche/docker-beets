@@ -1,3 +1,0 @@
-#!/command/execlineb -P
-with-contenv
-exec beet web -c "$BEETS_CONFIG"
