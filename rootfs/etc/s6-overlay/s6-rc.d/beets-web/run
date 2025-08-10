@@ -1,2 +1,2 @@
-#!/command/with-contenv sh
-fdmove -c 2 1 s6-setuidgid 99:100 /opt/beets/bin/beet web -c "$BEETS_CONFIG"
+#!/command/with-contenv bash
+exec s6-setuidgid 99:100 /opt/beets/bin/beet web -c "${BEETS_CONFIG}"
