@@ -17,7 +17,7 @@ ENV BEETS_VERSION=${BEETS_VERSION} \
     S6_CMD_WAIT_FOR_SERVICES=1 \
     S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0 \
     S6_KEEP_ENV=1 \
-    S6_STAGE2_HOOK="/apply_services_conditions.sh" \
+    S6_STAGE2_HOOK="/usr/local/bin/apply_services_conditions" \
     TZ="Europe/Stockholm"
 
 # Install s6-overlay (v3)
@@ -47,6 +47,7 @@ RUN DEBIAN_FRONTEND=noninteractive useradd -m -d /usr/share/app -s /usr/sbin/nol
         libmagickwand-dev \
         curl \
         ca-certificates \
+        yq \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

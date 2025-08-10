@@ -9,7 +9,7 @@ set -eu
 
 shopt -s nullglob
 for service_dir in "/etc/s6-overlay/s6-rc.d/"*; do
-    if [[ -f "${service_dir}/condition.sh" ]]; then
+    if [[ -f "${service_dir}/condition" ]]; then
         if "${service_dir}/condition.sh"; then
             service_name="$(basename "${service_dir}")"
             touch "/etc/s6-overlay/s6-rc.d/user/contents.d/${service_name}"

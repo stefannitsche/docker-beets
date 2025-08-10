@@ -1,1 +1,1 @@
-/usr/sbin/update-ca-certificates
+/etc/s6-overlay/s6-rc.d/beets-setup/run

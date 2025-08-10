@@ -3,9 +3,6 @@
 
 set -Eeuo pipefail
 
-log() { printf '[%s] %s\n' "$(date +'%F %T %Z')" "$*" >&2; }
-die() { log "ERROR: $*"; exit 1; }
-
 # --- config from env
 IMPORT_SOURCES="${IMPORT_SOURCES:-}"
 STAGING_ROOT="${STAGING_ROOT:-/data/Audio/Staging}"
@@ -13,11 +10,33 @@ STAGING_PREFIX="${STAGING_PREFIX:-Beets}"
 BEETS_CMD="${BEETS_CMD:-/opt/beets/bin/beet}"
 BEETS_IMPORT_ARGS="${BEETS_IMPORT_ARGS:-}"
 DRY_RUN="${DRY_RUN:-0}"
+LOG_DIR="${LOG_DIR:-/logs}"
+RUN_ID="$(date +'%Y%m%d-%H%M%S')"
+RUN_DIR="$LOG_DIR/run-$RUN_ID"
+MARKER_NAME="${MARKER_NAME:-.beets-staging.marker}"
+MARKER_SIG="${MARKER_SIG:-beets-importer-managed-v1}"
+
 
 BEETSDIR=/config
 FPCALC=/usr/bin/fpcalc
 export BEETSDIR
 export FPCALC
+
+log() {
+  local ts msg
+  ts="$(date +'%F %T %Z')"
+  msg="[$ts] $(printf '%s ' "$@")"
+  msg="${msg% }"
+
+  if [[ -n "${RUN_DIR:-}" ]]; then
+    mkdir -p -- "$RUN_DIR" 2>/dev/null || true
+    printf '%s\n' "$msg" | tee -a "$RUN_DIR/importer.log" >&2
+  else
+    # Fallback: no RUN_DIR yet – just stderr
+    printf '%s\n' "$msg" >&2
+  fi
+}
+die() { log "ERROR: $*"; exit 1; }
 
 [[ -n "${IMPORT_SOURCES// }" ]] || die "IMPORT_SOURCES is required (comma or newline separated)."
 
@@ -67,14 +86,17 @@ Set STAGING_ROOT under the same mount as src (e.g. /data/...), or export COPY_MI
   run "mkdir -p -- \"$dst\""
   local tmp=\"${dst}.tmp.$RANDOM\"
   run "mkdir -p -- $tmp"
+  run "printf '%s\n' \"$MARKER_SIG\" > \"$tmp/$MARKER_NAME\""
+
 
   local linkopt="--link-dest=\"$src\""
   [[ "${COPY_MIRROR:-0}" == "1" ]] && linkopt=""
 
   # trailing slashes matter
-  run "rsync -aH --delete --info=stats1,progress2 $linkopt \"$src/\" \"$tmp/\""
+  run "rsync -aH --delete --info=stats1 $linkopt \"$src/\" \"$tmp/\" 2> >(tee -a \"$RUN_DIR/rsync-$(basename "$dst").log\" >&2)"
   run "rm -rf -- \"$dst\""
   run "mv -- \"$tmp\" \"$dst\""
+  run "printf '%s\n' \"$MARKER_SIG\" > \"$dst/$MARKER_NAME\""
 }
 
 # Parse FILE target from a .cue; supports quoted/spacey names
@@ -147,6 +169,42 @@ split_all_cues_in_tree() {
     done
 }
 
+safe_clean_dir() {
+  local d="$1"
+  local rd; rd="$(readlink -f "$d" || realpath "$d")"
+  [[ "$rd" == "$STAGING_ROOT"* ]] || { log "Refusing to clean non-staging path: $rd"; return 1; }
+  local base; base="$(basename "$rd")"
+  [[ "$base" == ${STAGING_PREFIX}_* ]] || { log "Refusing to clean non-prefixed dir: $base"; return 1; }
+  run "rm -rf -- \"$rd\""
+}
+
+clean_staging_root() {
+  # Must be set and absolute
+  [[ -n "${STAGING_ROOT:-}" ]] || die "STAGING_ROOT is not set"
+  [[ "$STAGING_ROOT" = /* ]] || die "STAGING_ROOT must be an absolute path: $STAGING_ROOT"
+
+  # Resolve & basic safety checks
+  local rs
+  rs="$(readlink -f -- "$STAGING_ROOT" 2>/dev/null || realpath -- "$STAGING_ROOT")" \
+    || die "Cannot resolve STAGING_ROOT: $STAGING_ROOT"
+  [[ -d "$rs" ]] || { log "Staging root not found: $rs"; return 0; }
+  case "$rs" in
+    /|/bin|/boot|/dev|/etc|/home|/lib*|/proc|/root|/run|/sbin|/sys|/usr|/var)
+      die "Refusing to clean suspicious STAGING_ROOT: $rs"
+      ;;
+  esac
+
+  # Remove ONLY top-level dirs that carry our marker + signature
+  find "$rs" -mindepth 1 -maxdepth 1 -type d -print0 \
+  | while IFS= read -r -d '' d; do
+      if [[ -f "$d/$MARKER_NAME" ]] && grep -qF "$MARKER_SIG" "$d/$MARKER_NAME"; then
+        run "rm -rf -- \"$d\""
+      else
+        log "Skipping non-managed dir: $d"
+      fi
+    done
+}
+
 # --- main
 for src in "${SOURCES[@]}"; do
   src="$(echo "$src" | sed 's/[[:space:]]\+$//;s/^[[:space:]]\+//')"
@@ -165,11 +223,33 @@ done
 # Run beets import on the staging dirs
 log "Running beets import on: ${staging_dirs[*]}"
 if [[ "$DRY_RUN" == "1" ]]; then
-  log "DRY-RUN: $BEETS_CMD import $BEETS_IMPORT_ARGS ${staging_dirs[*]@Q}"
+  log "DRY-RUN: \"$BEETS_CMD\" import -l \"$RUN_DIR/beets-import.log\" $BEETS_IMPORT_ARGS \"${staging_dirs[@]}\""
 else
   # You can add -m here if you want move semantics regardless of config:
   # e.g., BEETS_IMPORT_ARGS="${BEETS_IMPORT_ARGS} -m"
-  "$BEETS_CMD" import $BEETS_IMPORT_ARGS "${staging_dirs[@]}"
+  set +e
+  "$BEETS_CMD" import -l "$RUN_DIR/beets-import.log" $BEETS_IMPORT_ARGS "${staging_dirs[@]}" |& tee -a "$RUN_DIR/beets-stdout.log"
+  rc=$?
+  set -e
 fi
 
-log "Done."
+if [[ $rc -ne 0 ]]; then
+  # Make a per-run bundle and copy to STAGING_ROOT
+  bundle="$LOG_DIR/error-bundle-$RUN_ID.tgz"
+  run "tar -czf \"$bundle\" -C \"$RUN_DIR\" ."
+  run "mkdir -p -- \"$STAGING_ROOT\""
+  dest="$STAGING_ROOT/.beets-error-bundle-$RUN_ID.tgz"
+  run "cp -a -- \"$bundle\" \"$dest\""
+  run "ln -sfn \"$(basename "$dest")\" \"$STAGING_ROOT/.beets-error-bundle-latest.tgz\""
+  log "Import failed (rc=$rc). Error bundle copied to: $dest"
+
+  # Clean the staging root (removes only our marker-tagged dirs)
+  clean_staging_root
+  log "Staging root cleaned (kept error bundle)."
+  exit $rc
+fi
+
+# Success: stateless—wipe our Beets_* and temp dirs under STAGING_ROOT
+clean_staging_root
+log "Import succeeded. Staging root cleaned."
+exit 0

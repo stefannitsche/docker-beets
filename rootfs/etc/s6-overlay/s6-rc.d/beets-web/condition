@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Make comparisons case insensitive
+shopt -s nocasematch
+
+if ! yq -e '.web' /config/config.yaml >/dev/null 2>&1; then
+  exit 1
+fi
