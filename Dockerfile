@@ -57,7 +57,7 @@ RUN python -m venv /opt/beets && \
     /opt/beets/bin/pip install --no-cache-dir \
         beets[autobpm,chroma,embedart,embyupdate,fetchart,kodiupdate,lyrics,lastgenre,lastimport,plexupdate,replaygain,sonosupdate,web,discogs]==${BEETS_VERSION} \
         beets-extrafiles \
-        beets-bandcamp \
+        beetcamp \
         git+https://github.com/edgars-supe/beets-importreplace.git
 
 # Setup directories
