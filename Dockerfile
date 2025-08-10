@@ -66,4 +66,4 @@ COPY rootfs/ /
 ENTRYPOINT ["/init"]
 
 # Set PATH to use venv by default
-ENV PATH="/opt/beets/bin:$PATH"
+ENV PATH="/opt/beets/bin:/command:$PATH"
