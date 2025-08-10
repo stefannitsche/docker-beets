@@ -36,12 +36,14 @@ RUN DEBIAN_FRONTEND=noninteractive useradd -m -d /usr/share/app -s /usr/sbin/nol
     ln -s "/usr/local/bin/${SUPERCRONIC}" /usr/local/bin/supercronic && \
     DEBIAN_FRONTEND=noninteractive ACCEPT_EULA=Y apt-get update && apt-get install -y --no-install-recommends \
         tzdata \
+        nano \
         rsync \
         ffmpeg \
         libchromaprint-tools \
         shntool \
         cuetools \
         flac \
+        mp3val \
         libmagickwand-dev \
         curl \
         ca-certificates \
@@ -52,8 +54,11 @@ RUN DEBIAN_FRONTEND=noninteractive useradd -m -d /usr/share/app -s /usr/sbin/nol
 # Create venv for Beets & install pip and Beets inside venv
 RUN python -m venv /opt/beets && \
     /opt/beets/bin/pip install --no-cache-dir --upgrade pip setuptools && \
-    /opt/beets/bin/pip install --no-cache-dir beets[all]==${BEETS_VERSION} \
-    git+https://github.com/edgars-supe/beets-importreplace.git
+    /opt/beets/bin/pip install --no-cache-dir \
+        beets[autobpm,chroma,embedart,embyupdate,fetchart,kodiupdate,lyrics,lastgenre,lastimport,plexupdate,replaygain,sonosupdate,web,discogs]==${BEETS_VERSION} \
+        beets-extrafiles \
+        beets-bandcamp \
+        git+https://github.com/edgars-supe/beets-importreplace.git
 
 # Setup directories
 RUN mkdir -p /data /config /logs
