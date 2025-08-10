@@ -36,6 +36,7 @@ RUN DEBIAN_FRONTEND=noninteractive useradd -m -d /usr/share/app -s /usr/sbin/nol
     ln -s "/usr/local/bin/${SUPERCRONIC}" /usr/local/bin/supercronic && \
     DEBIAN_FRONTEND=noninteractive ACCEPT_EULA=Y apt-get update && apt-get install -y --no-install-recommends \
         tzdata \
+        rsync \
         ffmpeg \
         libchromaprint-tools \
         shntool \

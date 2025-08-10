@@ -1,26 +1,154 @@
 #!/usr/bin/with-contenv bash
 # shellcheck shell=bash
-#
-# beets music tagger - post-processing script
-#
-# Author: Rich Manton (overbyrn)
-# Date: 29-04-13
-#
-# $1 - Fullpath of directory to be processed.  eg./mnt/user/downloads/some.artist_some.album
 
-# $7 - Status of post processing. 0 = OK, 1 = failed verification, 2 = failed unpack, 3 = 1+2
-if [ -n "$7" ] && [ "$7" -gt 0 ]; then
-    echo "post-processing failed, bypassing script"
-    exit 1
+set -Eeuo pipefail
+
+log() { printf '[%s] %s\n' "$(date +'%F %T %Z')" "$*" >&2; }
+die() { log "ERROR: $*"; exit 1; }
+
+# --- config from env
+IMPORT_SOURCES="${IMPORT_SOURCES:-}"
+STAGING_ROOT="${STAGING_ROOT:-/staging}"
+STAGING_PREFIX="${STAGING_PREFIX:-Beets}"
+BEETS_CMD="${BEETS_CMD:-beet}"
+BEETS_IMPORT_ARGS="${BEETS_IMPORT_ARGS:-}"
+DRY_RUN="${DRY_RUN:-0}"
+
+[[ -n "${IMPORT_SOURCES// }" ]] || die "IMPORT_SOURCES is required (comma or newline separated)."
+
+# normalize sources into an array (split on comma or newline)
+IFS=$'\n' read -r -d '' -a SOURCES < <(
+  printf '%s' "$IMPORT_SOURCES" | tr ',' '\n' | sed '/^\s*$/d' && printf '\0'
+)
+
+run() {
+  if [[ "$DRY_RUN" == "1" ]]; then
+    log "DRY-RUN: $*"
+  else
+    eval "$@"
+  fi
+}
+
+# ensure tools exist
+need_cmds=(rsync cuebreakpoints shnsplit cuetag flac)
+for c in "${need_cmds[@]}"; do
+  command -v "$c" >/dev/null 2>&1 || die "Missing dependency: $c"
+done
+command -v "$BEETS_CMD" >/dev/null 2>&1 || die "beets CLI not found: $BEETS_CMD"
+
+# make staging root
+[[ -d "$STAGING_ROOT" ]] || run "mkdir -p -- \"$STAGING_ROOT\""
+
+staging_dirs=()
+
+hardlink_mirror() {
+  local src="$1" dst="$2"
+  [[ -d "$src" ]] || { log "Skip (not a dir): $src"; return 0; }
+  log "Creating hard-linked snapshot: src='$src' -> dst='$dst'"
+  run "mkdir -p -- \"$dst\""
+  # Using rsync with --link-dest keeps dst files hard-linked to src where identical.
+  # First sync into a temp dir then atomically swap to avoid partial trees.
+  local tmp=\"${dst}.tmp.$RANDOM\"
+  run "mkdir -p -- $tmp"
+  # trailing slashes are important here
+  run "rsync -aH --delete --info=stats1,progress2 --link-dest=\"$src\" \"$src/\" \"$tmp/\""
+  run "rm -rf -- \"$dst\""
+  run "mv -- \"$tmp\" \"$dst\""
+}
+
+# Parse FILE target from a .cue; supports quoted/spacey names
+cue_target_audio() {
+  # prints the referenced audio filename relative to cue dir
+  awk -F '\"' '/^[Ff][Ii][Ll][Ee][[:space:]]+\"/ {print $2; exit}' "$1"
+}
+
+split_cue_flac_dir() {
+  local dir="$1"
+  # find all .cue files in this directory (non-recursive: we already walk recursively elsewhere)
+  shopt -s nullglob
+  local cues=("$dir"/*.cue "$dir"/*.CUE)
+  shopt -u nullglob
+  ((${#cues[@]})) || return 0
+
+  for cue in "${cues[@]}"; do
+    local rel_audio
+    rel_audio="$(cue_target_audio "$cue" || true)"
+    if [[ -z "$rel_audio" ]]; then
+      log "WARN: $cue has no FILE line; skipping."
+      continue
+    fi
+    local audio="$dir/$rel_audio"
+    if [[ ! -f "$audio" ]]; then
+      log "WARN: Referenced audio not found for $cue -> '$rel_audio' ; skipping."
+      continue
+    fi
+
+    # We only handle single-file image cues cleanly
+    # If cue references multiple FILE lines, cuebreakpoints still works, but tagging may be odd.
+    local bp_count
+    bp_count=$(cuebreakpoints "$cue" | wc -l | tr -d ' ')
+    if [[ "$bp_count" -eq 0 ]]; then
+      log "WARN: No breakpoints in $cue; skipping."
+      continue
+    fi
+
+    local splitdir="$dir/.split.$$"
+    run "mkdir -p -- \"$splitdir\""
+
+    log "Splitting: $(basename "$audio") using $(basename "$cue") -> $splitdir"
+    # Split into individual FLAC tracks
+    # -o flac uses flac encoder; -d selects output dir
+    run "cuebreakpoints \"$cue\" | shnsplit -o flac -d \"$splitdir\" \"$audio\""
+
+    # Tag new tracks from the cue sheet
+    # cuetag expects a glob of the new files
+    run "cuetag \"$cue\" \"$splitdir\"/split-track*.flac"
+
+    # Move split tracks back to album dir
+    run "find \"$splitdir\" -maxdepth 1 -type f -name 'split-track*.flac' -print0 | xargs -0 -I{} mv -n -- \"{}\" \"$dir\""
+
+    # Clean up image pair (in STAGING ONLY)
+    log "Removing original image pair from staging: $audio and $cue"
+    run "rm -f -- \"$audio\" \"$cue\""
+    run "rm -rf -- \"$splitdir\""
+  done
+}
+
+# Walk a staging subtree and split any cue+flac image albums
+split_all_cues_in_tree() {
+  local root="$1"
+  log "Scanning for .cue albums under: $root"
+  # For each directory that contains a .cue, process it
+  # Using -print0 and while read -d '' for safety
+  find "$root" -type f \( -iname '*.cue' \) -print0 \
+  | while IFS= read -r -d '' cuefile; do
+      split_cue_flac_dir "$(dirname "$cuefile")"
+    done
+}
+
+# --- main
+for src in "${SOURCES[@]}"; do
+  src="$(echo "$src" | sed 's/[[:space:]]\+$//;s/^[[:space:]]\+//')"
+  [[ -n "$src" ]] || continue
+  base="$(basename "$src")"
+  dst="$STAGING_ROOT/${STAGING_PREFIX}_${base}"
+  hardlink_mirror "$src" "$dst"
+  staging_dirs+=("$dst")
+done
+
+# Process cue/flac image albums inside each staging dir
+for d in "${staging_dirs[@]}"; do
+  split_all_cues_in_tree "$d"
+done
+
+# Run beets import on the staging dirs
+log "Running beets import on: ${staging_dirs[*]}"
+if [[ "$DRY_RUN" == "1" ]]; then
+  log "DRY-RUN: $BEETS_CMD import $BEETS_IMPORT_ARGS ${staging_dirs[*]@Q}"
+else
+  # You can add -m here if you want move semantics regardless of config:
+  # e.g., BEETS_IMPORT_ARGS="${BEETS_IMPORT_ARGS} -m"
+  "$BEETS_CMD" import $BEETS_IMPORT_ARGS "${staging_dirs[@]}"
 fi
 
-# process files
-echo "--------------------------"
-printf %b "$(date)\n"
-echo "Starting beets.sh for $(basename "$1")"
-
-BEETSDIR=/config
-export BEETSDIR
-FPCALC=/usr/bin/fpcalc
-export FPCALC
-/lsiopy/bin/beet -v import -q "$1"
+log "Done."
