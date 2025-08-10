@@ -41,17 +41,33 @@ command -v "$BEETS_CMD" >/dev/null 2>&1 || die "beets CLI not found: $BEETS_CMD"
 
 staging_dirs=()
 
+same_fs() {
+  # compare device numbers; identical => same filesystem
+  [[ "$(stat -c %d "$1")" == "$(stat -c %d "$2")" ]]
+}
+
 hardlink_mirror() {
   local src="$1" dst="$2"
   [[ -d "$src" ]] || { log "Skip (not a dir): $src"; return 0; }
+
+  local dst_parent
+  dst_parent="$(dirname "$dst")"
+
+  if ! same_fs "$src" "$dst_parent"; then
+    die "Cannot hardlink: '$src' and '$dst_parent' are on different filesystems.
+Set STAGING_ROOT under the same mount as src (e.g. /data/...), or export COPY_MIRROR=1 to allow full copies."
+  fi
+
   log "Creating hard-linked snapshot: src='$src' -> dst='$dst'"
   run "mkdir -p -- \"$dst\""
-  # Using rsync with --link-dest keeps dst files hard-linked to src where identical.
-  # First sync into a temp dir then atomically swap to avoid partial trees.
   local tmp=\"${dst}.tmp.$RANDOM\"
   run "mkdir -p -- $tmp"
-  # trailing slashes are important here
-  run "rsync -aH --delete --info=stats1,progress2 --link-dest=\"$src\" \"$src/\" \"$tmp/\""
+
+  local linkopt="--link-dest=\"$src\""
+  [[ "${COPY_MIRROR:-0}" == "1" ]] && linkopt=""
+
+  # trailing slashes matter
+  run "rsync -aH --delete --info=stats1,progress2 $linkopt \"$src/\" \"$tmp/\""
   run "rm -rf -- \"$dst\""
   run "mv -- \"$tmp\" \"$dst\""
 }
