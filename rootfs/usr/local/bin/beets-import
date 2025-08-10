@@ -10,9 +10,14 @@ die() { log "ERROR: $*"; exit 1; }
 IMPORT_SOURCES="${IMPORT_SOURCES:-}"
 STAGING_ROOT="${STAGING_ROOT:-/data/Audio/Staging}"
 STAGING_PREFIX="${STAGING_PREFIX:-Beets}"
-BEETS_CMD="${BEETS_CMD:-beet}"
+BEETS_CMD="${BEETS_CMD:-/opt/beets/bin/beet}"
 BEETS_IMPORT_ARGS="${BEETS_IMPORT_ARGS:-}"
 DRY_RUN="${DRY_RUN:-0}"
+
+BEETSDIR=/config
+FPCALC=/usr/bin/fpcalc
+export BEETSDIR
+export FPCALC
 
 [[ -n "${IMPORT_SOURCES// }" ]] || die "IMPORT_SOURCES is required (comma or newline separated)."
 
