@@ -79,6 +79,10 @@ paths:                       # Directory and naming scheme.
 
 max_filename_length: 255     # 0 = unlimited.
 
+permissions:
+    file: 664
+    dir: 775
+
 ##################################################################################################
 
 

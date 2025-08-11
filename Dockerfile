@@ -12,6 +12,7 @@ ARG SUPERCRONIC_SHA1SUM=cd48d45c4b10f3f0bfdd3a57d054cd05ac96812b
 
 ENV BEETS_VERSION=${BEETS_VERSION} \
     BEETSDIR=/config \
+    NUMBA_CACHE_DIR=/cache \
     S6_VERSION=v3.2.1.0 \
     S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
     S6_CMD_WAIT_FOR_SERVICES=1 \
@@ -62,7 +63,11 @@ RUN python -m venv /opt/beets && \
         git+https://github.com/edgars-supe/beets-importreplace.git
 
 # Setup directories
-RUN mkdir -p /data /config /logs
+RUN mkdir -p /data /config /logs /cache && \
+    chown 99:100 /data && \
+    chown 99:100 /config && \
+    chown 99:100 /logs && \
+    chown 99:100 /cache
 
 VOLUME /data /config /logs
 
