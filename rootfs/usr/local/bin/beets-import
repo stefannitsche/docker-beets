@@ -169,15 +169,6 @@ split_all_cues_in_tree() {
     done
 }
 
-safe_clean_dir() {
-  local d="$1"
-  local rd; rd="$(readlink -f "$d" || realpath "$d")"
-  [[ "$rd" == "$STAGING_ROOT"* ]] || { log "Refusing to clean non-staging path: $rd"; return 1; }
-  local base; base="$(basename "$rd")"
-  [[ "$base" == ${STAGING_PREFIX}_* ]] || { log "Refusing to clean non-prefixed dir: $base"; return 1; }
-  run "rm -rf -- \"$rd\""
-}
-
 clean_staging_root() {
   # Must be set and absolute
   [[ -n "${STAGING_ROOT:-}" ]] || die "STAGING_ROOT is not set"
@@ -223,12 +214,12 @@ done
 # Run beets import on the staging dirs
 log "Running beets import on: ${staging_dirs[*]}"
 if [[ "$DRY_RUN" == "1" ]]; then
-  log "DRY-RUN: \"$BEETS_CMD\" import -l \"$RUN_DIR/beets-import.log\" $BEETS_IMPORT_ARGS \"${staging_dirs[@]}\""
+  log "DRY-RUN: \"$BEETS_CMD\" import -l \"$RUN_DIR/beets-import.log\" $BEETS_IMPORT_ARGS \"${staging_dirs[*]}\""
 else
   # You can add -m here if you want move semantics regardless of config:
   # e.g., BEETS_IMPORT_ARGS="${BEETS_IMPORT_ARGS} -m"
   set +e
-  "$BEETS_CMD" import -l "$RUN_DIR/beets-import.log" $BEETS_IMPORT_ARGS "${staging_dirs[@]}" |& tee -a "$RUN_DIR/beets-stdout.log"
+  "$BEETS_CMD" import -l "$RUN_DIR/beets-import.log" "$BEETS_IMPORT_ARGS" "${staging_dirs[@]}" |& tee -a "$RUN_DIR/beets-stdout.log"
   rc=$?
   set -e
 fi
@@ -246,7 +237,7 @@ if [[ $rc -ne 0 ]]; then
   # Clean the staging root (removes only our marker-tagged dirs)
   clean_staging_root
   log "Staging root cleaned (kept error bundle)."
-  exit $rc
+  exit "$rc"
 fi
 
 # Success: stateless—wipe our Beets_* and temp dirs under STAGING_ROOT
