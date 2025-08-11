@@ -16,10 +16,7 @@ RUN_DIR="$LOG_DIR/run-$RUN_ID"
 MARKER_NAME="${MARKER_NAME:-.beets-staging.marker}"
 MARKER_SIG="${MARKER_SIG:-beets-importer-managed-v1}"
 
-
-BEETSDIR=/config
 FPCALC=/usr/bin/fpcalc
-export BEETSDIR
 export FPCALC
 
 log() {
