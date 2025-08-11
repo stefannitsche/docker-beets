@@ -67,34 +67,35 @@ same_fs() {
   [[ "$(stat -c %d "$1")" == "$(stat -c %d "$2")" ]]
 }
 
-hardlink_mirror() {
+mirror_copy() {
   local src="$1" dst="$2"
   [[ -d "$src" ]] || { log "Skip (not a dir): $src"; return 0; }
 
-  local dst_parent
-  dst_parent="$(dirname "$dst")"
+  log "Mirroring (copy): src='$src' -> dst='$dst'"
 
-  if ! same_fs "$src" "$dst_parent"; then
-    die "Cannot hardlink: '$src' and '$dst_parent' are on different filesystems.
-Set STAGING_ROOT under the same mount as src (e.g. /data/...), or export COPY_MIRROR=1 to allow full copies."
-  fi
-
-  log "Creating hard-linked snapshot: src='$src' -> dst='$dst'"
-  run "mkdir -p -- \"$dst\""
   local tmp=\"${dst}.tmp.$RANDOM\"
   run "mkdir -p -- $tmp"
-  run "printf '%s\n' \"$MARKER_SIG\" > \"$tmp/$MARKER_NAME\""
 
+  # optional: write a marker in tmp so we can detect “our” trees
+  [[ -n "${RUN_DIR:-}" && -n "${MARKER_SIG:-}" && -n "${MARKER_NAME:-}" ]] \
+    && run "printf '%s\n' \"$MARKER_SIG\" > \"$tmp/$MARKER_NAME\""
 
-  local linkopt="--link-dest=\"$src\""
-  [[ "${COPY_MIRROR:-0}" == "1" ]] && linkopt=""
+  # trailing slashes matter: copy *contents* of src into tmp
+  if [[ -n "${RUN_DIR:-}" ]]; then
+    run "rsync -aH --delete --info=stats1,progress2 \"$src/\" \"$tmp/\" \
+         2> >(tee -a \"$RUN_DIR/rsync-$(basename "$dst").log\" >&2)"
+  else
+    run "rsync -aH --delete --info=stats1,progress2 \"$src/\" \"$tmp/\""
+  fi
 
-  # trailing slashes matter
-  run "rsync -aH --delete --info=stats1 $linkopt \"$src/\" \"$tmp/\" 2> >(tee -a \"$RUN_DIR/rsync-$(basename "$dst").log\" >&2)"
   run "rm -rf -- \"$dst\""
   run "mv -- \"$tmp\" \"$dst\""
-  run "printf '%s\n' \"$MARKER_SIG\" > \"$dst/$MARKER_NAME\""
+
+  # optional: final marker in the completed dst
+  [[ -n "${RUN_DIR:-}" && -n "${MARKER_SIG:-}" && -n "${MARKER_NAME:-}" ]] \
+    && run "printf '%s\n' \"$MARKER_SIG\" > \"$dst/$MARKER_NAME\""
 }
+
 
 # Parse FILE target from a .cue; supports quoted/spacey names
 cue_target_audio() {
@@ -199,7 +200,7 @@ for src in "${SOURCES[@]}"; do
   [[ -n "$src" ]] || continue
   base="$(basename "$src")"
   dst="$STAGING_ROOT/${STAGING_PREFIX}_${base}"
-  hardlink_mirror "$src" "$dst"
+  mirror_copy "$src" "$dst"
   staging_dirs+=("$dst")
 done
 
