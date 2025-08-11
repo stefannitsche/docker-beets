@@ -10,3 +10,4 @@ su -c "cp -n /defaults/beets/genres/genres-tree.yaml /config/genres/genres-trees
 su -c "cp -n /defaults/beets/genres/genres.txt /config/genres/genres.txt" app
 su -c "cp -n /defaults/beets/config.yaml /config/config.yaml" app
 chown -R 99:100 /config
+chown 99:100 /logs
