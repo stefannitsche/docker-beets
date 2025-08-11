@@ -1,62 +1,25 @@
 <?xml version="1.0"?>
-<Container>
-  <Name>Beets</Name>
-  <Repository>yourdockerhubusername/beets</Repository>
-  <Registry>https://hub.docker.com/r/yourdockerhubusername/beets</Registry>
-  <Network>bridge</Network>
-  <MyIP/>
-  <Shell>sh</Shell>
-  <Privileged>false</Privileged>
-  <Support>https://github.com/stefannitsche/beets-docker</Support>
-  <Project>https://beets.io/</Project>
-  <Overview>This container runs Beets with optional cron and web server, using s6-overlay and Unraid-friendly UID/GID support.</Overview>
-  <Category>MediaManagement:Music</Category>
-  <WebUI>http://[IP]:[PORT:8337]</WebUI>
-  <Icon>https://beets.io/static/favicon.png</Icon>
-  <ExtraParams/>
-  <PostArgs/>
-  <CPUset/>
-  <DateInstalled/>
-  <DonateText/>
-  <DonateLink/>
-  <Version>latest</Version>
-  <Environment>
-    <Variable>
-      <Name>PUID</Name>
-      <Value>99</Value>
-      <Description>Set the user ID to run the container (matches your Unraid user ID)</Description>
-    </Variable>
-    <Variable>
-      <Name>PGID</Name>
-      <Value>100</Value>
-      <Description>Set the group ID to run the container (matches your Unraid group ID)</Description>
-    </Variable>
-    <Variable>
-      <Name>BEETS_CONFIG</Name>
-      <Value>/config/config.yaml</Value>
-      <Description>Path to Beets configuration file</Description>
-    </Variable>
-  </Environment>
-  <Data>
-    <Volume>
-      <HostDir>/mnt/user/appdata/beets/config</HostDir>
-      <ContainerDir>/config</ContainerDir>
-      <Mode>rw</Mode>
-    </Volume>
-    <Volume>
-      <HostDir>/mnt/user/media/music</HostDir>
-      <ContainerDir>/music</ContainerDir>
-      <Mode>rw</Mode>
-    </Volume>
-    <Volume>
-      <HostDir>/mnt/user/appdata/beets/logs</HostDir>
-      <ContainerDir>/logs</ContainerDir>
-      <Mode>rw</Mode>
-    </Volume>
-  </Data>
-  <Port>
-    <HostPort>8337</HostPort>
-    <ContainerPort>8337</ContainerPort>
-    <Protocol>tcp</Protocol>
-  </Port>
+<Container version="2">
+    <Name>beets</Name>
+    <Repository>ghcr.io/stefannitsche/beets</Repository>
+    <Registry> ghcr.io/stefannitsche/beets</Registry>
+    <Network>bridge</Network>
+    <Privileged>false</Privileged>
+    <Support>https://github.com/stefannitsche/docker-beets/issues/new</Support>
+    <Shell>bash</Shell>
+    <GitHub>https://github.com/stefannitsche/docker-beets</GitHub>
+    <ReadMe>https://github.com/stefannitsche/docker-beets#readme</ReadMe>
+    <Branch>
+        <Tag>latest</Tag>
+        <TagDescription>Stable Beets Releases</TagDescription>
+    </Branch>
+    <Project>http://beets.io/</Project>
+    <Overview>Beets(http://beets.io/) is a music library manager and not, for the most part, a music player. It does include a simple player plugin and an experimental Web-based player, but it generally leaves actual sound-reproduction to specialized tools. This is a pretty opinionated install to make this as hands off as possible.</Overview>
+    <WebUI>http://[IP]:[PORT:8337]</WebUI>
+    <TemplateURL>https://raw.githubusercontent.com/stefannitsche/docker-beets/refs/heads/main/unraid.xml</TemplateURL>
+    <Icon>https://raw.githubusercontent.com/stefannitsche/docker-beets/refs/heads/main/logo.png</Icon>
+    <Date>2025-08-11</Date>
+    <Config Name="WebUI" Target="8337" Default="8337" Mode="tcp" Description="Application WebUI" Type="Port" Display="always" Required="true" Mask="false"/>
+    <Config Name="Appdata" Target="/config" Default="" Mode="rw" Description="Persistent config files" Type="Path" Display="advanced" Required="true" Mask="false"/>
+    <Config Name="Path: /data" Target="/data" Default="" Mode="rw" Description="Root folder that can access both music library and staging folders" Type="Path" Display="always" Required="true" Mask="false"/>
 </Container>
