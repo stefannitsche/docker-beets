@@ -1,2 +1,2 @@
 #!/command/execlineb -P
-fdmove -c 2 1 s6-setuidgid app /opt/beets/bin/beet web -c /config/config.yaml
+fdmove -c 2 1 s6-setuidgid 99:100 /opt/beets/bin/beet web
