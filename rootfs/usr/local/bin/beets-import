@@ -8,7 +8,7 @@ IMPORT_SOURCES="${IMPORT_SOURCES:-}"
 STAGING_ROOT="${STAGING_ROOT:-/data/Audio/Staging}"
 STAGING_PREFIX="${STAGING_PREFIX:-Beets}"
 BEETS_CMD="${BEETS_CMD:-/opt/beets/bin/beet}"
-BEETS_IMPORT_ARGS="${BEETS_IMPORT_ARGS:-}"
+BEETS_IMPORT_ARGS="-q -p -i ${BEETS_IMPORT_ARGS:-}"
 DRY_RUN="${DRY_RUN:-0}"
 LOG_DIR="${LOG_DIR:-/logs}"
 RUN_ID="$(date +'%Y%m%d-%H%M%S')"
@@ -61,11 +61,6 @@ command -v "$BEETS_CMD" >/dev/null 2>&1 || die "beets CLI not found: $BEETS_CMD"
 [[ -d "$STAGING_ROOT" ]] || run "mkdir -p -- \"$STAGING_ROOT\""
 
 staging_dirs=()
-
-same_fs() {
-  # compare device numbers; identical => same filesystem
-  [[ "$(stat -c %d "$1")" == "$(stat -c %d "$2")" ]]
-}
 
 mirror_copy() {
   local src="$1" dst="$2"
