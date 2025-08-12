@@ -8,7 +8,7 @@ IMPORT_SOURCES="${IMPORT_SOURCES:-}"
 STAGING_ROOT="${STAGING_ROOT:-/data/Audio/Staging}"
 STAGING_PREFIX="${STAGING_PREFIX:-Beets}"
 BEETS_CMD="${BEETS_CMD:-/opt/beets/bin/beet}"
-BEETS_IMPORT_ARGS="-q -p -i ${BEETS_IMPORT_ARGS:-}"
+BEETS_IMPORT_ARGS="${BEETS_IMPORT_ARGS:-}"
 DRY_RUN="${DRY_RUN:-0}"
 LOG_DIR="${LOG_DIR:-/logs}"
 RUN_ID="$(date +'%Y%m%d-%H%M%S')"
@@ -18,6 +18,19 @@ MARKER_SIG="${MARKER_SIG:-beets-importer-managed-v1}"
 
 FPCALC=/usr/bin/fpcalc
 export FPCALC
+
+beet_args=(-q -p -i)
+
+# Append any extra flags from env, removing a bare '-'
+if [[ -n "${BEETS_IMPORT_ARGS:-}" ]]; then
+  # shellcheck disable=SC2206
+  extras=( ${BEETS_IMPORT_ARGS} )
+  clean=()
+  for a in "${extras[@]}"; do
+    [[ "$a" == "-" ]] || clean+=("$a")
+  done
+  beet_args+=("${clean[@]}")
+fi
 
 log() {
   local ts msg
@@ -207,12 +220,10 @@ done
 # Run beets import on the staging dirs
 log "Running beets import on: ${staging_dirs[*]}"
 if [[ "$DRY_RUN" == "1" ]]; then
-  log "DRY-RUN: \"$BEETS_CMD\" import -l \"$RUN_DIR/beets-import.log\" $BEETS_IMPORT_ARGS \"${staging_dirs[*]}\""
+  log "DRY-RUN: \"$BEETS_CMD\" import -l \"$RUN_DIR/beets-import.log\" \"${beet_args[*]}\" \"${staging_dirs[*]}\""
 else
-  # You can add -m here if you want move semantics regardless of config:
-  # e.g., BEETS_IMPORT_ARGS="${BEETS_IMPORT_ARGS} -m"
   set +e
-  "$BEETS_CMD" import -l "$RUN_DIR/beets-import.log" "$BEETS_IMPORT_ARGS" "${staging_dirs[@]}" |& tee -a "$RUN_DIR/beets-stdout.log"
+  "$BEETS_CMD" import -l "$RUN_DIR/beets-import.log" "${beet_args[@]}" "${staging_dirs[@]}" |& tee -a "$RUN_DIR/beets-stdout.log"
   rc=$?
   set -e
 fi
