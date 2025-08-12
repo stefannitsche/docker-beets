@@ -132,7 +132,7 @@ import:                      # Beets can move or copy files but it doesn’t mak
                              # “remove” means remove old item;
                              # “merge” means merge into one album;
                              # “ask” means the user should be prompted for the action each time.
-  bell: yes                  # Ring the terminal bell to get your attention when the importer needs your input.
+  bell: no                   # Ring the terminal bell to get your attention when the importer needs your input.
 
 importadded:
   preserve_mtimes: no        # After importing files, re-set their mtimes to their original value. Default: no.
