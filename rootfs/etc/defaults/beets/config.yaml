@@ -290,8 +290,8 @@ lyrics:
     - google
     - genius
     - tekstowo
-                             # Leave in last position or comment it out.
-                             # @test
+  synced: yes                # Prefer synced lyrics over plain lyrics if a source offers them. Currently lrclib is the only source that provides them.
+
 ###################################################################################################
 
 
