@@ -29,7 +29,7 @@ RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
     rm /tmp/s6-overlay-*.tar.xz
 
 # Install system dependencies
-RUN DEBIAN_FRONTEND=noninteractive useradd -m -d /usr/share/app -s /usr/sbin/nologin -g users -u 99 app && \
+RUN DEBIAN_FRONTEND=noninteractive useradd -m -d /usr/share/app -s /usr/bin/bash -g users -u 99 app && \
     curl -fsSLO "$SUPERCRONIC_URL" && \
     echo "${SUPERCRONIC_SHA1SUM}  ${SUPERCRONIC}" | sha1sum -c - && \
     chmod +x "$SUPERCRONIC" && \
